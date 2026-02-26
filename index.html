@@ -13,101 +13,145 @@
         .status-stretch { background: #d97706; color: white; }
         .status-nogo { background: #dc2626; color: white; }
         .card-hover:hover { border-color: rgba(59, 130, 246, 0.5); transform: translateY(-2px); }
+        .filter-active { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; }
     </style>
 </head>
 <body class="p-4 md:p-8">
-    <div class="max-w-7xl mx-auto">
-        <header class="flex justify-between items-center mb-10">
+    <div class="max-w-screen-2xl mx-auto">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
                     CloudShapers AI
                 </h1>
                 <p class="text-slate-400">Real-time Recruitment Matching</p>
             </div>
-            <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition flex items-center shadow-lg shadow-blue-900/20">
+            <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-lg transition flex items-center shadow-lg font-medium">
                 <i class="fas fa-sync-alt mr-2"></i> Verversen
             </button>
         </header>
 
-        <div id="stats" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             </div>
 
-        <h2 class="text-xl font-semibold mb-6 flex items-center">
-            <i class="fas fa-list-ul mr-3 text-blue-400"></i> Recente Aanvragen
-        </h2>
+        <div class="glass p-4 rounded-xl mb-8 flex flex-col lg:flex-row gap-4 justify-between items-center sticky top-4 z-10 shadow-2xl">
+            <div class="relative w-full lg:w-96">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <i class="fas fa-search text-slate-400"></i>
+                </div>
+                <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Zoek op rol, klant of kandidaat..." 
+                       class="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5">
+            </div>
 
-        <div id="app-container" class="grid grid-cols-1 gap-6">
-            <div class="text-center py-20 text-slate-500">
-                <i class="fas fa-spinner fa-spin mr-2"></i> Data ophalen uit Cloudflare D1...
+            <div class="flex flex-wrap gap-2 w-full lg:w-auto">
+                <button onclick="setFilter('ALL')" id="btn-ALL" class="filter-active border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition hover:bg-slate-700">Alles</button>
+                <button onclick="setFilter('GO')" id="btn-GO" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition hover:bg-slate-700"><i class="fas fa-check-circle text-green-400 mr-1"></i> GO</button>
+                <button onclick="setFilter('STRETCH')" id="btn-STRETCH" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition hover:bg-slate-700"><i class="fas fa-exclamation-circle text-amber-400 mr-1"></i> Stretch</button>
+                <button onclick="setFilter('NO-GO')" id="btn-NO-GO" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium transition hover:bg-slate-700"><i class="fas fa-times-circle text-red-400 mr-1"></i> No-Go</button>
+            </div>
+        </div>
+
+        <div id="app-container" class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+            <div class="text-center py-20 text-slate-500 col-span-full">
+                <i class="fas fa-spinner fa-spin mr-2 text-2xl"></i><br>Data ophalen uit Cloudflare D1...
             </div>
         </div>
     </div>
 
     <script>
         const API_URL = 'https://cloudshaper-api.timosteen22.workers.dev';
+        
+        // Globale variabelen om te filteren zonder de API opnieuw aan te roepen
+        let allItems = [];
+        let currentFilter = 'ALL';
 
         // 1. Data ophalen
         async function fetchData() {
             try {
                 const response = await fetch(API_URL);
-                const data = await response.json();
-                renderDashboard(data);
+                allItems = await response.json();
+                updateStats();
+                applyFilters();
             } catch (error) {
                 document.getElementById('app-container').innerHTML = 
-                    `<div class="text-red-400 p-4 glass rounded-lg border-red-500/50">
+                    `<div class="text-red-400 p-4 glass rounded-lg border-red-500/50 col-span-full">
                         <i class="fas fa-exclamation-triangle mr-2"></i> Fout bij laden: ${error.message}
                     </div>`;
             }
         }
 
-        // 2. Item verwijderen
+        // 2. Stats updaten
+        function updateStats() {
+            const statsContainer = document.getElementById('stats');
+            const total = allItems.length;
+            const goMatches = allItems.filter(i => i.match_status === 'GO').length;
+            const stretchMatches = allItems.filter(i => i.match_status === 'STRETCH').length;
+
+            statsContainer.innerHTML = `
+                <div class="glass p-5 rounded-xl border-l-4 border-blue-500">
+                    <p class="text-slate-400 text-xs uppercase font-bold tracking-wider">Totaal Aanvragen</p>
+                    <p class="text-2xl font-bold">${total}</p>
+                </div>
+                <div class="glass p-5 rounded-xl border-l-4 border-green-500">
+                    <p class="text-slate-400 text-xs uppercase font-bold tracking-wider">Directe GO's</p>
+                    <p class="text-2xl font-bold text-green-400">${goMatches}</p>
+                </div>
+                <div class="glass p-5 rounded-xl border-l-4 border-amber-500">
+                    <p class="text-slate-400 text-xs uppercase font-bold tracking-wider">Stretch Opties</p>
+                    <p class="text-2xl font-bold text-amber-400">${stretchMatches}</p>
+                </div>
+            `;
+        }
+
+        // 3. Filter functionaliteit instellen
+        function setFilter(status) {
+            currentFilter = status;
+            // Update knop stijlen
+            document.querySelectorAll('[id^="btn-"]').forEach(btn => btn.classList.remove('filter-active'));
+            document.getElementById(`btn-${status}`).classList.add('filter-active');
+            applyFilters();
+        }
+
+        // 4. Data Filteren & Zoeken
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            const filteredItems = allItems.filter(item => {
+                // Match status filter
+                const matchesStatus = currentFilter === 'ALL' || item.match_status === currentFilter;
+                
+                // Zoekterm filter (zoekt in rol, klant en samenvatting)
+                const searchString = `${item.rol} ${item.klant} ${item.samenvatting} ${item.kandidaten_json}`.toLowerCase();
+                const matchesSearch = searchString.includes(searchTerm);
+
+                return matchesStatus && matchesSearch;
+            });
+
+            renderDashboard(filteredItems);
+        }
+
+        // 5. Item verwijderen
         async function deleteItem(id) {
-            if (!confirm('Weet je zeker dat je deze aanvraag wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
-
+            if (!confirm('Weet je zeker dat je deze aanvraag wilt verwijderen?')) return;
             try {
-                const response = await fetch(`${API_URL}?id=${id}`, {
-                    method: 'DELETE',
-                });
-
-                if (response.ok) {
-                    fetchData(); // Dashboard verversen na verwijderen
-                } else {
-                    alert('Fout: Kon het item niet verwijderen van de server.');
-                }
+                const response = await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
+                if (response.ok) fetchData();
+                else alert('Fout bij verwijderen.');
             } catch (error) {
-                console.error('Delete error:', error);
-                alert('Netwerkfout bij het verwijderen.');
+                console.error(error);
             }
         }
 
-        // 3. Dashboard Renderen
+        // 6. Dashboard Renderen (Met compacte lay-out)
         function renderDashboard(items) {
             const container = document.getElementById('app-container');
-            const statsContainer = document.getElementById('stats');
             
-            if (!items || items.length === 0) {
-                container.innerHTML = '<div class="glass p-10 text-center rounded-xl text-slate-400">Nog geen aanvragen gevonden.</div>';
-                statsContainer.innerHTML = '';
+            if (items.length === 0) {
+                container.innerHTML = '<div class="glass p-10 text-center rounded-xl text-slate-400 col-span-full">Geen aanvragen gevonden voor deze filters.</div>';
                 return;
             }
 
-            // Stats berekenen
-            const total = items.length;
-            const goMatches = items.filter(i => i.match_status === 'GO').length;
-
-            statsContainer.innerHTML = `
-                <div class="glass p-6 rounded-xl border-l-4 border-blue-500 shadow-lg">
-                    <p class="text-slate-400 text-sm">Totaal Verwerkt</p>
-                    <p class="text-3xl font-bold">${total}</p>
-                </div>
-                <div class="glass p-6 rounded-xl border-l-4 border-green-500 shadow-lg">
-                    <p class="text-slate-400 text-sm">Directe Matches (GO)</p>
-                    <p class="text-3xl font-bold text-green-400">${goMatches}</p>
-                </div>
-            `;
-
             container.innerHTML = items.map(item => {
-                // Kandidaten verwerken (Make stuurt vaak een string of array)
+                // Kandidaten JSON netjes uitpakken
                 let kandidaten = [];
                 try {
                     if (typeof item.kandidaten_json === 'string') {
@@ -116,58 +160,54 @@
                     } else {
                         kandidaten = item.kandidaten_json || [];
                     }
-                } catch(e) { 
-                    console.error("Fout bij parsen kandidaten voor ID: " + item.id); 
-                }
+                } catch(e) { console.error("Fout bij parsen kandidaten ID: " + item.id); }
 
                 const statusClass = item.match_status === 'GO' ? 'status-go' : 
                                    (item.match_status === 'STRETCH' ? 'status-stretch' : 'status-nogo');
 
                 return `
-                    <div class="glass p-6 rounded-2xl shadow-xl transition duration-300 card-hover border border-slate-700/50">
-                        <div class="flex flex-wrap justify-between items-start gap-4 mb-4">
-                            <div class="flex-1">
-                                <span class="text-xs font-bold uppercase tracking-widest text-blue-400">${item.klant || 'Onbekende Klant'}</span>
-                                <h3 class="text-2xl font-bold text-white">${item.rol}</h3>
-                                <div class="flex flex-wrap gap-4 mt-2 text-sm text-slate-400">
-                                    <span><i class="fas fa-map-marker-alt mr-1 text-slate-500"></i> ${item.locatie}</span>
-                                    <span><i class="fas fa-euro-sign mr-1 text-slate-500"></i> ${item.tarief}/u</span>
-                                    <span><i class="fas fa-clock mr-1 text-slate-500"></i> ${item.uren}</span>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center gap-3">
-                                <div class="px-4 py-2 rounded-full font-bold text-sm shadow-inner ${statusClass}">
-                                    ${item.match_status}
-                                </div>
-                                <button onclick="deleteItem(${item.id})" class="bg-slate-800 hover:bg-red-900/40 text-slate-500 hover:text-red-400 p-2.5 rounded-lg transition border border-slate-700" title="Verwijderen">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
+                    <div class="glass p-5 rounded-xl shadow-xl transition duration-300 card-hover flex flex-col h-full border border-slate-700/50">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-bold uppercase tracking-widest text-blue-400 truncate pr-2">${item.klant || 'Onbekend'}</span>
+                            <div class="px-3 py-1 rounded-full font-bold text-[10px] uppercase shadow-inner whitespace-nowrap ${statusClass}">
+                                ${item.match_status}
                             </div>
                         </div>
 
-                        <div class="bg-slate-900/40 p-4 rounded-xl mb-4 border border-slate-700/50">
-                            <p class="text-sm italic text-slate-300">"${item.samenvatting || 'Geen samenvatting beschikbaar.'}"</p>
+                        <h3 class="text-xl font-bold text-white leading-tight mb-3">${item.rol}</h3>
+                        <div class="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-xs text-slate-400 font-medium">
+                            <span title="Locatie"><i class="fas fa-map-marker-alt text-slate-500 w-3"></i> ${item.locatie}</span>
+                            <span title="Tarief"><i class="fas fa-euro-sign text-slate-500 w-3"></i> ${item.tarief}/u</span>
+                            <span title="Uren"><i class="fas fa-clock text-slate-500 w-3"></i> ${item.uren}</span>
                         </div>
 
-                        <div class="space-y-3">
-                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Match Analyse:</p>
-                            ${kandidaten.length > 0 ? kandidaten.map(k => `
-                                <div class="flex items-start gap-3 text-sm border-l-2 border-slate-700/50 pl-4 py-1">
-                                    <div class="mt-1 ${k.status === 'GO' ? 'text-green-400' : 'text-amber-400'}">
-                                        <i class="fas ${k.status === 'GO' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                        <div class="bg-slate-900/50 p-3 rounded-lg mb-4 text-sm text-slate-300 leading-relaxed border border-slate-700/50">
+                            ${item.samenvatting || 'Geen samenvatting beschikbaar.'}
+                        </div>
+
+                        <div class="mt-auto">
+                            <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-700/50 pb-1">Gekoppelde Profielen</h4>
+                            <div class="space-y-2 mb-4">
+                                ${kandidaten.length > 0 ? kandidaten.map(k => `
+                                    <div class="flex items-start gap-2 bg-slate-800/30 p-2 rounded-md border border-slate-700/30">
+                                        <div class="mt-0.5 ${k.status === 'GO' ? 'text-green-400' : (k.status === 'STRETCH' ? 'text-amber-400' : 'text-red-400')}">
+                                            <i class="fas ${k.status === 'GO' ? 'fa-check-circle' : (k.status === 'STRETCH' ? 'fa-exclamation-circle' : 'fa-times-circle')}"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex justify-between items-baseline">
+                                                <span class="font-bold text-sm text-slate-200 truncate">${k.naam || 'Onbekend'}</span>
+                                                <span class="text-[9px] uppercase font-bold text-slate-500 ml-2">${k.status}</span>
+                                            </div>
+                                            <p class="text-slate-400 text-xs mt-0.5 line-clamp-2" title="${k.reden || ''}">${k.reden || 'Geen toelichting.'}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <span class="font-bold text-slate-200">${k.naam || 'Onbekende kandidaat'}</span>
-                                        <p class="text-slate-400 text-xs leading-relaxed">${k.reden || 'Geen specifieke reden opgegeven.'}</p>
-                                    </div>
-                                </div>
-                            `).join('') : '<p class="text-xs text-slate-600 italic pl-4">Geen kandidaten geanalyseerd voor dit verzoek.</p>'}
+                                `).join('') : '<p class="text-xs text-slate-600 italic">Geen kandidaten in de Top 3 voor deze aanvraag.</p>'}
+                            </div>
                         </div>
                         
-                        <div class="mt-6 pt-4 border-t border-slate-800/50 flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-widest">
-                            <span>ID: #${item.id}</span>
-                            <span><i class="far fa-calendar-alt mr-1"></i> ${new Date(item.datum).toLocaleString()}</span>
+                        <div class="mt-2 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-widest">
+                            <span><i class="far fa-calendar-alt mr-1"></i> ${new Date(item.datum).toLocaleDateString('nl-NL', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'})}</span>
+                            <button onclick="deleteItem(${item.id})" class="hover:text-red-400 transition" title="Verwijderen"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     </div>
                 `;
