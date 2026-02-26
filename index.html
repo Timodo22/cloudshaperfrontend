@@ -1,24 +1,45 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudShapers AI | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        .status-go { background: #059669; color: white; }
+        .status-stretch { background: #d97706; color: white; }
+        .status-nogo { background: #dc2626; color: white; }
+        .filter-active { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; }
+        .card-hover:hover { border-color: rgba(59, 130, 246, 0.5); transform: translateY(-2px); }
+    </style>
+</head>
 <body class="p-4 md:p-8">
     <div class="max-w-screen-2xl mx-auto">
         <header class="flex justify-between items-center mb-8">
             <div>
                 <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">CloudShapers AI</h1>
-                <p class="text-slate-400 font-medium">Matching Dashboard</p>
+                <p class="text-slate-400 font-medium text-sm tracking-wide">AI-Driven Recruitment Matching</p>
             </div>
-            <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-lg transition flex items-center shadow-lg"><i class="fas fa-sync-alt mr-2"></i> Verversen</button>
+            <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-lg transition flex items-center shadow-lg font-bold">
+                <i class="fas fa-sync-alt mr-2"></i> Verversen
+            </button>
         </header>
 
-        <div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></div>
+        <div id="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"></div>
 
         <div class="glass p-4 rounded-xl mb-8 flex flex-col lg:flex-row gap-4 justify-between items-center sticky top-4 z-10 shadow-2xl">
             <div class="relative w-full lg:w-96">
-                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"><i class="fas fa-search text-slate-400"></i></div>
-                <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Zoek op rol, klant..." class="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg block w-full pl-10 p-2.5">
+                <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+                <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Zoek op rol, klant of kandidaat..." 
+                       class="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg block w-full pl-10 p-2.5 outline-none focus:border-blue-500">
             </div>
-            <div class="flex flex-wrap gap-2">
-                <button onclick="setFilter('RELEVANT')" id="btn-RELEVANT" class="filter-active border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium">Relevant</button>
-                <button onclick="setFilter('IRRELEVANT')" id="btn-IRRELEVANT" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium">Niet Relevant</button>
-                <button onclick="setFilter('ALL')" id="btn-ALL" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-medium">Alles</button>
+            <div class="flex flex-wrap gap-2 w-full lg:w-auto">
+                <button onclick="setFilter('RELEVANT')" id="btn-RELEVANT" class="filter-active border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Relevant</button>
+                <button onclick="setFilter('IRRELEVANT')" id="btn-IRRELEVANT" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Ruis (10d)</button>
+                <button onclick="setFilter('ALL')" id="btn-ALL" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Alles</button>
             </div>
         </div>
 
@@ -31,23 +52,27 @@
         let currentFilter = 'RELEVANT';
 
         async function fetchData() {
-            const response = await fetch(API_URL);
-            allItems = await response.json();
-            updateStats();
-            applyFilters();
+            try {
+                const response = await fetch(API_URL);
+                allItems = await response.json();
+                updateStats();
+                applyFilters();
+            } catch (e) {
+                console.error("API Error:", e);
+            }
         }
 
         function updateStats() {
             const total = allItems.length;
-            const relevant = allItems.filter(i => i.is_relevant === 1).length;
-            const irrelevant = total - relevant;
+            const relevantCount = allItems.filter(i => i.is_relevant === 1).length;
+            const irrelevantCount = total - relevantCount;
             const goMatches = allItems.filter(i => i.match_status === 'GO' && i.is_relevant === 1).length;
 
             document.getElementById('stats').innerHTML = `
-                <div class="glass p-5 rounded-xl border-l-4 border-blue-500"><p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Totaal Verwerkt</p><p class="text-2xl font-bold">${total}</p></div>
-                <div class="glass p-5 rounded-xl border-l-4 border-green-500"><p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Relevant</p><p class="text-2xl font-bold text-green-400">${relevant}</p></div>
-                <div class="glass p-5 rounded-xl border-l-4 border-red-500"><p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Niet Relevant (Ruis)</p><p class="text-2xl font-bold text-red-400">${irrelevant}</p></div>
-                <div class="glass p-5 rounded-xl border-l-4 border-purple-500"><p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Directe Matches</p><p class="text-2xl font-bold text-purple-400">${goMatches}</p></div>
+                <div class="glass p-5 rounded-xl border-l-4 border-blue-500"><p class="text-slate-400 text-[10px] font-bold uppercase">Totaal</p><p class="text-2xl font-bold">${total}</p></div>
+                <div class="glass p-5 rounded-xl border-l-4 border-green-500"><p class="text-slate-400 text-[10px] font-bold uppercase text-green-400">Relevant</p><p class="text-2xl font-bold">${relevantCount}</p></div>
+                <div class="glass p-5 rounded-xl border-l-4 border-red-500"><p class="text-slate-400 text-[10px] font-bold uppercase text-red-400">Ruis</p><p class="text-2xl font-bold">${irrelevantCount}</p></div>
+                <div class="glass p-5 rounded-xl border-l-4 border-purple-500"><p class="text-slate-400 text-[10px] font-bold uppercase text-purple-400">Directe Matches</p><p class="text-2xl font-bold">${goMatches}</p></div>
             `;
         }
 
@@ -61,48 +86,68 @@
         function applyFilters() {
             const search = document.getElementById('searchInput').value.toLowerCase();
             const filtered = allItems.filter(item => {
-                const matchesFilter = (currentFilter === 'ALL') || 
-                                     (currentFilter === 'RELEVANT' && item.is_relevant === 1) || 
-                                     (currentFilter === 'IRRELEVANT' && item.is_relevant === 0);
-                const matchesSearch = item.rol.toLowerCase().includes(search) || item.klant.toLowerCase().includes(search);
-                return matchesFilter && matchesSearch;
+                const matchesFilter = (currentFilter === 'ALL') || (currentFilter === 'RELEVANT' && item.is_relevant === 1) || (currentFilter === 'IRRELEVANT' && item.is_relevant === 0);
+                const searchData = `${item.rol} ${item.klant} ${item.kandidaten_json}`.toLowerCase();
+                return matchesFilter && searchData.includes(search);
             });
             renderDashboard(filtered);
         }
 
+        async function deleteItem(id) {
+            if (!confirm('Verzoek verwijderen uit database?')) return;
+            await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
+            fetchData();
+        }
+
         function renderDashboard(items) {
-            document.getElementById('app-container').innerHTML = items.map(item => {
+            const container = document.getElementById('app-container');
+            container.innerHTML = items.map(item => {
                 let kandidaten = [];
-                try { kandidaten = JSON.parse(item.kandidaten_json) || []; } catch(e) {}
+                try { 
+                    kandidaten = typeof item.kandidaten_json === 'string' ? JSON.parse(item.kandidaten_json) : item.kandidaten_json; 
+                } catch(e) { kandidaten = []; }
+
                 const statusClass = item.match_status === 'GO' ? 'status-go' : (item.match_status === 'STRETCH' ? 'status-stretch' : 'status-nogo');
 
                 return `
-                    <div class="glass p-5 rounded-xl shadow-xl transition border border-slate-700/50 flex flex-col ${item.is_relevant === 0 ? 'opacity-75 grayscale-[0.5]' : ''}">
+                    <div class="glass p-5 rounded-xl shadow-xl transition card-hover flex flex-col h-full border border-slate-700/50 ${item.is_relevant === 0 ? 'opacity-60 grayscale-[0.3]' : ''}">
                         <div class="flex justify-between items-start mb-2">
-                            <span class="text-xs font-bold uppercase text-blue-400">${item.klant}</span>
-                            <div class="px-3 py-1 rounded-full font-bold text-[10px] uppercase ${statusClass}">${item.match_status}</div>
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-blue-400 truncate pr-2">${item.klant || 'Onbekend'}</span>
+                            <div class="px-3 py-1 rounded-full font-bold text-[10px] text-white uppercase shadow-lg ${statusClass}">${item.match_status}</div>
                         </div>
-                        <h3 class="text-xl font-bold text-white mb-3">${item.rol}</h3>
-                        <div class="flex flex-wrap gap-x-4 gap-y-1 mb-4 text-xs text-slate-400 font-medium">
+                        <h3 class="text-xl font-bold text-white mb-3 leading-tight">${item.rol}</h3>
+                        
+                        <div class="flex flex-wrap gap-x-4 gap-y-2 mb-4 text-[11px] text-slate-400 font-medium">
                             <span><i class="fas fa-map-marker-alt text-slate-500 w-3"></i> ${item.locatie}</span>
                             <span><i class="fas fa-euro-sign text-slate-500 w-3"></i> ${item.tarief}/u</span>
-                            <span><i class="fas fa-calendar-star text-blue-500 w-3"></i> Start: ${item.startdatum}</span>
+                            <span><i class="fas fa-clock text-slate-500 w-3"></i> ${item.uren}</span>
+                            <span class="text-blue-300 font-bold"><i class="fas fa-calendar-check w-3"></i> Start: ${item.startdatum || 'Z.s.m.'}</span>
                         </div>
-                        <div class="bg-slate-900/50 p-3 rounded-lg mb-4 text-sm text-slate-300 leading-relaxed italic border border-slate-700/50">"${item.samenvatting}"</div>
+
+                        <div class="bg-slate-900/50 p-4 rounded-lg mb-4 text-sm text-slate-300 leading-relaxed italic border border-slate-700/30">
+                            "${item.samenvatting}"
+                        </div>
+
                         <div class="mt-auto">
-                            <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 border-b border-slate-700/50 pb-1">Top 3 Analyse</h4>
+                            <h4 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-700/50 pb-1">Gekoppelde Profielen (Top 3)</h4>
                             <div class="space-y-3">
-                                ${kandidaten.length > 0 ? kandidaten.map(k => `
-                                    <div class="flex items-start gap-2 bg-slate-800/30 p-2 rounded-md border border-slate-700/30">
-                                        <div class="mt-0.5 ${k.status === 'GO' ? 'text-green-400' : 'text-amber-400'}"><i class="fas fa-check-circle"></i></div>
-                                        <div><p class="font-bold text-sm text-slate-200">${k.naam}</p><p class="text-slate-400 text-xs mt-0.5">${k.reden}</p></div>
+                                ${kandidaten && kandidaten.length > 0 ? kandidaten.map(k => `
+                                    <div class="flex items-start gap-3 bg-slate-800/40 p-3 rounded-lg border border-slate-700/30">
+                                        <div class="mt-1 ${k.status === 'GO' ? 'text-green-400' : (k.status === 'STRETCH' ? 'text-amber-400' : 'text-red-400')}">
+                                            <i class="fas ${k.status === 'GO' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="font-bold text-sm text-slate-200">${k.naam}</p>
+                                            <p class="text-slate-400 text-xs mt-1 leading-relaxed">${k.reden}</p>
+                                        </div>
                                     </div>
-                                `).join('') : '<p class="text-xs text-slate-600 italic">Geen match resultaten.</p>'}
+                                `).join('') : '<p class="text-xs text-slate-600 italic pl-2 text-center py-4">Geen match resultaten gevonden.</p>'}
                             </div>
                         </div>
-                        <div class="mt-6 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[9px] text-slate-500 uppercase tracking-widest">
-                            <span><i class="far fa-calendar-alt"></i> ${new Date(item.datum).toLocaleString()}</span>
-                            <button onclick="deleteItem(${item.id})"><i class="fas fa-trash-alt"></i></button>
+                        
+                        <div class="mt-6 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[9px] text-slate-500 uppercase tracking-widest font-bold">
+                            <span><i class="far fa-calendar-alt mr-1"></i> ${new Date(item.datum).toLocaleString()}</span>
+                            <button onclick="deleteItem(${item.id})" class="hover:text-red-500 transition px-2 py-1"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     </div>
                 `;
@@ -111,3 +156,4 @@
         fetchData();
     </script>
 </body>
+</html>
