@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CloudShapers AI | Dashboard</title>
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <link href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css)" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
@@ -16,8 +16,8 @@
         .card-hover:hover { border-color: rgba(59, 130, 246, 0.5); transform: translateY(-2px); }
     </style>
 </head>
-<body class="p-4 md:p-8">
-    <div class="max-w-screen-2xl mx-auto">
+<body class="p-4 md:p-8 relative min-h-screen">
+    <div class="max-w-screen-2xl mx-auto pb-20">
         <header class="flex justify-between items-center mb-8">
             <div>
                 <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">CloudShapers AI</h1>
@@ -43,23 +43,84 @@
             </div>
         </div>
 
-        <div id="app-container" class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6"></div>
+        <div id="app-container" class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+            <div class="col-span-full text-center py-10 text-slate-500">
+                <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
+                <p>Data ophalen...</p>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="toggleDebug()" class="fixed bottom-4 right-4 bg-slate-800 text-slate-400 px-4 py-2 rounded-full text-sm hover:text-white hover:bg-slate-700 z-40 border border-slate-600 shadow-lg transition">
+        <i class="fas fa-bug mr-1"></i> Debug Console
+    </button>
+
+    <div id="debug-log" class="fixed bottom-0 left-0 right-0 h-64 bg-slate-900 text-green-400 font-mono text-xs p-4 overflow-y-auto z-50 border-t-2 border-slate-700 hidden shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-700 text-white font-bold sticky top-0 bg-slate-900 pt-1">
+            <span><i class="fas fa-terminal mr-2"></i> Systeem Logboek</span>
+            <button onclick="toggleDebug()" class="text-slate-400 hover:text-red-400 transition"><i class="fas fa-times fa-lg"></i></button>
+        </div>
+        <div id="debug-output" class="space-y-1"></div>
     </div>
 
     <script>
-        // Let op: controleer of dit jouw juiste API URL is
-        const API_URL = '[https://cloudshaper-api.timosteen22.workers.dev](https://cloudshaper-api.timosteen22.workers.dev)';
+        const API_URL = 'https://cloudshaper-api.timosteen22.workers.dev';
         let allItems = [];
         let currentFilter = 'RELEVANT';
 
+        // --- DEBUGGER LOGICA ---
+        const debugOutput = document.getElementById('debug-output');
+        function logDebug(msg, type = 'info') {
+            const div = document.createElement('div');
+            let color = 'text-green-400';
+            if (type === 'error') color = 'text-red-400 font-bold';
+            if (type === 'warn') color = 'text-yellow-400';
+            
+            div.className = color;
+            div.innerHTML = `<span class="text-slate-500">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
+            debugOutput.prepend(div);
+            
+            if (type === 'error') console.error(msg);
+            else console.log(msg);
+        }
+
+        function toggleDebug() {
+            const debugLog = document.getElementById('debug-log');
+            debugLog.classList.toggle('hidden');
+        }
+        // -----------------------
+
         async function fetchData() {
+            logDebug(`Verbinding maken met API: ${API_URL}`);
+            document.getElementById('app-container').innerHTML = `<div class="col-span-full text-center py-10 text-slate-500"><i class="fas fa-spinner fa-spin text-3xl mb-3"></i><p>Data synchroniseren...</p></div>`;
+            
             try {
                 const response = await fetch(API_URL);
+                logDebug(`HTTP Status Code: ${response.status}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API weigerde toegang (Code ${response.status}): ${errorText}`);
+                }
+
                 allItems = await response.json();
+                
+                if (!Array.isArray(allItems)) {
+                    throw new Error("De API gaf geen geldige array met data terug.");
+                }
+
+                logDebug(`Succes! ${allItems.length} aanvragen ingeladen in het geheugen.`);
                 updateStats();
                 applyFilters();
             } catch (e) {
-                console.error("API Error:", e);
+                logDebug(`CRITIEKE FOUT: ${e.message}`, 'error');
+                document.getElementById('app-container').innerHTML = `
+                    <div class="col-span-full bg-red-900/30 border border-red-500 p-6 rounded-xl text-center">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-3"></i>
+                        <h3 class="text-xl font-bold text-red-400 mb-2">Kan de data niet laden</h3>
+                        <p class="text-slate-300 text-sm">Controleer de debug console (rechtsonder) voor de exacte foutmelding.</p>
+                    </div>
+                `;
             }
         }
 
@@ -81,6 +142,7 @@
             currentFilter = f; 
             document.querySelectorAll('[id^="btn-"]').forEach(b => b.classList.remove('filter-active'));
             document.getElementById(`btn-${f}`).classList.add('filter-active');
+            logDebug(`Filter toegepast: ${f}`);
             applyFilters(); 
         }
 
@@ -88,29 +150,51 @@
             const search = document.getElementById('searchInput').value.toLowerCase();
             const filtered = allItems.filter(item => {
                 const matchesFilter = (currentFilter === 'ALL') || (currentFilter === 'RELEVANT' && item.is_relevant === 1) || (currentFilter === 'IRRELEVANT' && item.is_relevant === 0);
-                const searchData = `${item.rol} ${item.klant} ${item.eindklant} ${item.broker} ${item.kandidaten_json}`.toLowerCase();
+                
+                // Veilige fallbacks om crashes bij missende velden te voorkomen
+                const rolStr = item.rol || '';
+                const klantStr = item.klant || '';
+                const eindklantStr = item.eindklant || '';
+                const brokerStr = item.broker || '';
+                const kandsStr = item.kandidaten_json || '';
+                
+                const searchData = `${rolStr} ${klantStr} ${eindklantStr} ${brokerStr} ${kandsStr}`.toLowerCase();
                 return matchesFilter && searchData.includes(search);
             });
             renderDashboard(filtered);
         }
 
         async function deleteItem(id) {
-            if (!confirm('Verzoek verwijderen uit database?')) return;
-            await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
-            fetchData();
+            if (!confirm('Weet je zeker dat je deze aanvraag wilt verwijderen?')) return;
+            logDebug(`Verwijder-verzoek verstuurd voor ID: ${id}`, 'warn');
+            try {
+                await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
+                logDebug(`Item ID ${id} succesvol verwijderd.`);
+                fetchData();
+            } catch (e) {
+                logDebug(`Fout bij verwijderen: ${e.message}`, 'error');
+            }
         }
 
         function renderDashboard(items) {
             const container = document.getElementById('app-container');
+            
+            if (items.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-500 italic">Geen resultaten gevonden in deze weergave.</div>`;
+                return;
+            }
+
             container.innerHTML = items.map(item => {
                 let kandidaten = [];
                 try { 
                     kandidaten = typeof item.kandidaten_json === 'string' ? JSON.parse(item.kandidaten_json) : item.kandidaten_json; 
-                } catch(e) { kandidaten = []; }
+                } catch(e) { 
+                    logDebug(`Fout bij inlezen kandidaten JSON voor item ${item.id}`, 'error');
+                    kandidaten = []; 
+                }
 
                 const statusClass = item.match_status === 'GO' ? 'status-go' : (item.match_status === 'STRETCH' ? 'status-stretch' : 'status-nogo');
                 
-                // Formattering voor Eindklant vs Broker
                 const eindklantWeergave = item.eindklant ? item.eindklant : (item.klant || 'Onbekend');
                 const brokerHtml = item.broker ? `<span class="bg-slate-700 px-2 py-0.5 rounded text-xs text-slate-300 ml-2 border border-slate-600 font-normal">via ${item.broker}</span>` : '';
 
@@ -122,9 +206,9 @@
                                 <h4 class="text-sm font-black uppercase tracking-widest text-blue-400 mb-1 flex items-center flex-wrap gap-1">
                                     <i class="far fa-building mr-1"></i> ${eindklantWeergave} ${brokerHtml}
                                 </h4>
-                                <h3 class="text-2xl font-bold text-white leading-tight">${item.rol}</h3>
+                                <h3 class="text-2xl font-bold text-white leading-tight">${item.rol || 'Zonder Titel'}</h3>
                             </div>
-                            <div class="px-3 py-1.5 rounded-full font-bold text-xs text-white uppercase shadow-lg ${statusClass} whitespace-nowrap">${item.match_status}</div>
+                            <div class="px-3 py-1.5 rounded-full font-bold text-xs text-white uppercase shadow-lg ${statusClass} whitespace-nowrap">${item.match_status || '?'}</div>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-3 mb-5 text-sm text-slate-300 font-medium bg-slate-800/50 p-3 rounded-lg border border-slate-700/30">
@@ -147,7 +231,7 @@
                         ` : ''}
 
                         <div class="bg-slate-900/60 p-4 rounded-lg mb-5 text-sm text-slate-300 leading-relaxed italic border border-slate-700/30">
-                            "${item.samenvatting}"
+                            "${item.samenvatting || 'Geen samenvatting beschikbaar.'}"
                         </div>
 
                         <div class="mt-auto">
@@ -159,8 +243,8 @@
                                             <i class="fas ${k.status === 'GO' ? 'fa-check-circle' : 'fa-exclamation-circle'} text-lg"></i>
                                         </div>
                                         <div class="min-w-0">
-                                            <p class="font-bold text-sm text-slate-200">${k.naam}</p>
-                                            <p class="text-slate-400 text-xs mt-1 leading-relaxed">${k.reden}</p>
+                                            <p class="font-bold text-sm text-slate-200">${k.naam || 'Onbekend'}</p>
+                                            <p class="text-slate-400 text-xs mt-1 leading-relaxed">${k.reden || ''}</p>
                                         </div>
                                     </div>
                                 `).join('') : '<p class="text-xs text-slate-600 italic pl-2 text-center py-4">Geen match resultaten gevonden.</p>'}
@@ -168,14 +252,16 @@
                         </div>
                         
                         <div class="mt-6 pt-4 border-t border-slate-800/50 flex justify-between items-center text-xs text-slate-400 font-medium">
-                            <span><i class="far fa-clock mr-1"></i> Ontvangen: ${new Date(item.datum).toLocaleString('nl-NL', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'})}</span>
+                            <span><i class="far fa-clock mr-1"></i> Ontvangen: ${item.datum ? new Date(item.datum).toLocaleString('nl-NL', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'}) : 'Onbekend'}</span>
                             <button onclick="deleteItem(${item.id})" class="text-slate-500 hover:text-red-500 transition px-2 py-1 bg-slate-800 rounded border border-slate-700"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     </div>
                 `;
             }).join('');
         }
-        fetchData();
+        
+        // Data ophalen direct bij het inladen
+        window.onload = fetchData;
     </script>
 </body>
 </html>
