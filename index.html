@@ -18,14 +18,19 @@
 </head>
 <body class="p-4 md:p-8 relative min-h-screen">
     <div class="max-w-screen-2xl mx-auto pb-20">
-        <header class="flex justify-between items-center mb-8">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">CloudShapers AI</h1>
                 <p class="text-slate-400 font-medium text-sm tracking-wide">AI-Driven Recruitment Matching</p>
             </div>
-            <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-lg transition flex items-center shadow-lg font-bold">
-                <i class="fas fa-sync-alt mr-2"></i> Verversen
-            </button>
+            <div class="flex gap-2">
+                <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-lg transition flex items-center shadow-lg font-bold">
+                    <i class="fas fa-sync-alt mr-2"></i> Verversen
+                </button>
+                <button onclick="resetLogin()" class="bg-slate-700 hover:bg-red-600 px-4 py-2.5 rounded-lg transition flex items-center shadow-lg font-bold text-sm">
+                    <i class="fas fa-sign-out-alt mr-2"></i> Uitloggen
+                </button>
+            </div>
         </header>
 
         <div id="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"></div>
@@ -68,14 +73,25 @@
     </div>
 
     <script>
-        // BEIDE API'S DEFINIËREN
         const API_MAIL = 'https://cloudshaper-api.timosteen22.workers.dev';
         const API_THISWORKZ = 'https://api-thisworks.timo-vandersteen.workers.dev/api/opportunities'; 
         
+        // --- LOGIN LOGICA ---
+        let apiKey = localStorage.getItem('dashboard_key');
+        if (!apiKey) {
+            apiKey = prompt("🔒 Voer het dashboard wachtwoord in:");
+            if (apiKey) localStorage.setItem('dashboard_key', apiKey);
+        }
+
+        function resetLogin() {
+            localStorage.removeItem('dashboard_key');
+            location.reload();
+        }
+        // --------------------
+
         let allItems = [];
         let currentFilter = 'RELEVANT';
 
-        // --- DEBUGGER LOGICA ---
         const debugOutput = document.getElementById('debug-output');
         function logDebug(msg, type = 'info') {
             const div = document.createElement('div');
@@ -95,20 +111,35 @@
             const debugLog = document.getElementById('debug-log');
             debugLog.classList.toggle('hidden');
         }
-        // -----------------------
 
         async function fetchData() {
+            if (!apiKey) {
+                document.getElementById('app-container').innerHTML = `<div class="col-span-full text-center py-10 text-red-400 font-bold"><i class="fas fa-lock text-3xl mb-3"></i><p>Je moet inloggen om data te zien.</p><button onclick="resetLogin()" class="mt-4 text-blue-400 underline">Opnieuw inloggen</button></div>`;
+                return;
+            }
+
             logDebug(`Data ophalen van beide API's...`);
             document.getElementById('app-container').innerHTML = `<div class="col-span-full text-center py-10 text-slate-500"><i class="fas fa-spinner fa-spin text-3xl mb-3"></i><p>Data synchroniseren uit Mail & ThisWorkz...</p></div>`;
             
-            allItems = []; // Leeg de array
+            allItems = []; 
             
             try {
-                // Haal beide API's tegelijk op
+                const fetchOptions = {
+                    headers: { "x-api-key": apiKey }
+                };
+
                 const [mailResponse, thisWorkzResponse] = await Promise.allSettled([
-                    fetch(API_MAIL),
-                    fetch(API_THISWORKZ)
+                    fetch(API_MAIL, fetchOptions),
+                    fetch(API_THISWORKZ, fetchOptions)
                 ]);
+
+                // Controleer op 401 (Verkeerd wachtwoord)
+                if ((mailResponse.status === 'fulfilled' && mailResponse.value.status === 401) || 
+                    (thisWorkzResponse.status === 'fulfilled' && thisWorkzResponse.value.status === 401)) {
+                    alert("⚠️ Toegang geweigerd: Verkeerd wachtwoord of sessie is verlopen.");
+                    resetLogin();
+                    return;
+                }
 
                 // Verwerk Mail Data
                 if (mailResponse.status === 'fulfilled' && mailResponse.value.ok) {
@@ -138,7 +169,6 @@
                     throw new Error("Geen data gevonden in beide API's.");
                 }
 
-                // Sorteer alles netjes op datum (nieuwste eerst)
                 allItems.sort((a, b) => new Date(b.datum || 0) - new Date(a.datum || 0));
 
                 logDebug(`Totaal ${allItems.length} aanvragen succesvol gecombineerd.`);
@@ -203,7 +233,16 @@
             const targetApi = (bron === 'THISWORKZ') ? API_THISWORKZ : API_MAIL;
             
             try {
-                await fetch(`${targetApi}?id=${id}`, { method: 'DELETE' });
+                const response = await fetch(`${targetApi}?id=${id}`, { 
+                    method: 'DELETE',
+                    headers: { "x-api-key": apiKey }
+                });
+
+                if (response.status === 401) {
+                    alert("⚠️ Toegang geweigerd: Je hebt niet de juiste rechten om items te verwijderen.");
+                    return;
+                }
+
                 logDebug(`Item succesvol verwijderd uit ${bron}.`);
                 fetchData(); 
             } catch (e) {
@@ -228,7 +267,6 @@
                 const statusClass = item.match_status === 'GO' ? 'status-go' : (item.match_status === 'STRETCH' ? 'status-stretch' : 'status-nogo');
                 const isRel = item.is_relevant === 1 || item.is_relevant === true;
 
-                // Verbeterde weergave logica
                 const weergaveTitel = item.rol && item.rol !== 'null' && item.rol !== '' ? item.rol : 'Zonder Titel';
                 const weergaveKlant = item.eindklant && item.eindklant !== 'null' ? item.eindklant : (item.klant && item.klant !== 'null' ? item.klant : 'Onbekende Klant');
                 const weergaveLocatie = item.locatie && item.locatie !== 'null' ? item.locatie : '-';
@@ -238,7 +276,6 @@
                 const brokerHtml = item.broker && item.broker !== 'null' ? `<span class="bg-slate-700 px-2 py-0.5 rounded text-xs text-slate-300 ml-2 border border-slate-600 font-normal">via ${item.broker}</span>` : '';
                 const apiSourceHtml = item.api_source && item.api_source !== 'null' ? `<span class="bg-slate-700 px-2 py-0.5 rounded text-xs text-slate-300 ml-1 border border-slate-600 font-normal">(${item.api_source})</span>` : '';
 
-                // Dynamische badge en ID weergave
                 let sourceBadge = '';
                 let idWeergave = '';
                 if (item._bron === 'THISWORKZ') {
