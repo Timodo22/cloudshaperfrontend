@@ -30,16 +30,20 @@
 
         <div id="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8"></div>
 
-        <div class="glass p-4 rounded-xl mb-8 flex flex-col lg:flex-row gap-4 justify-between items-center sticky top-4 z-10 shadow-2xl">
-            <div class="relative w-full lg:w-96">
+        <div class="glass p-4 rounded-xl mb-8 flex flex-col xl:flex-row gap-4 justify-between items-center sticky top-4 z-10 shadow-2xl">
+            <div class="relative w-full xl:w-96">
                 <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
                 <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Zoek op rol, klant of kandidaat..." 
                        class="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg block w-full pl-10 p-2.5 outline-none focus:border-blue-500">
             </div>
-            <div class="flex flex-wrap gap-2 w-full lg:w-auto">
-                <button onclick="setFilter('RELEVANT')" id="btn-RELEVANT" class="filter-active border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Relevant</button>
-                <button onclick="setFilter('IRRELEVANT')" id="btn-IRRELEVANT" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Ruis (5d)</button>
-                <button onclick="setFilter('ALL')" id="btn-ALL" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Alles</button>
+            <div class="flex flex-wrap gap-2 w-full xl:w-auto">
+                <div class="border-r border-slate-600 pr-2 mr-1 flex gap-2">
+                    <button onclick="setFilter('RELEVANT')" id="btn-RELEVANT" class="filter-active border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Relevant</button>
+                    <button onclick="setFilter('IRRELEVANT')" id="btn-IRRELEVANT" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Ruis</button>
+                </div>
+                <button onclick="setFilter('MAIL')" id="btn-MAIL" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition"><i class="fas fa-envelope mr-1"></i> Mail</button>
+                <button onclick="setFilter('THISWORKZ')" id="btn-THISWORKZ" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition"><i class="fas fa-plug mr-1"></i> ThisWorkz</button>
+                <button onclick="setFilter('ALL')" id="btn-ALL" class="ml-1 border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Alles</button>
             </div>
         </div>
 
@@ -64,9 +68,9 @@
     </div>
 
     <script>
-// BEIDE API'S DEFINIËREN
+        // BEIDE API'S DEFINIËREN
         const API_MAIL = 'https://cloudshaper-api.timosteen22.workers.dev';
-        const API_THISWORKZ = 'https://api-thisworks.timo-vandersteen.workers.dev/api/opportunities'; // <-- Vul hier je nieuwe in
+        const API_THISWORKZ = 'https://api-thisworks.timo-vandersteen.workers.dev/api/opportunities'; 
         
         let allItems = [];
         let currentFilter = 'RELEVANT';
@@ -110,7 +114,7 @@
                 if (mailResponse.status === 'fulfilled' && mailResponse.value.ok) {
                     const mailData = await mailResponse.value.json();
                     if (Array.isArray(mailData)) {
-                        mailData.forEach(item => item._bron = 'MAIL'); // Label toevoegen
+                        mailData.forEach(item => item._bron = 'MAIL');
                         allItems = allItems.concat(mailData);
                         logDebug(`${mailData.length} items uit Mail API geladen.`);
                     }
@@ -122,12 +126,12 @@
                 if (thisWorkzResponse.status === 'fulfilled' && thisWorkzResponse.value.ok) {
                     const twData = await thisWorkzResponse.value.json();
                     if (Array.isArray(twData)) {
-                        twData.forEach(item => item._bron = 'THISWORKZ'); // Label toevoegen
+                        twData.forEach(item => item._bron = 'THISWORKZ');
                         allItems = allItems.concat(twData);
                         logDebug(`${twData.length} items uit ThisWorkz API geladen.`);
                     }
                 } else {
-                    logDebug(`Fout bij laden ThisWorkz API`, 'warn'); // Warn ipv Error voor als je hem nog niet live hebt
+                    logDebug(`Fout bij laden ThisWorkz API`, 'error'); 
                 }
 
                 if (allItems.length === 0) {
@@ -155,13 +159,13 @@
         function updateStats() {
             const total = allItems.length;
             const relevantCount = allItems.filter(i => i.is_relevant === 1 || i.is_relevant === true).length;
-            const irrelevantCount = total - relevantCount;
+            const twCount = allItems.filter(i => i._bron === 'THISWORKZ').length;
             const goMatches = allItems.filter(i => i.match_status === 'GO' && (i.is_relevant === 1 || i.is_relevant === true)).length;
 
             document.getElementById('stats').innerHTML = `
-                <div class="glass p-5 rounded-xl border-l-4 border-blue-500"><p class="text-slate-400 text-[10px] font-bold uppercase">Totaal</p><p class="text-2xl font-bold">${total}</p></div>
+                <div class="glass p-5 rounded-xl border-l-4 border-blue-500"><p class="text-slate-400 text-[10px] font-bold uppercase">Totaal Aanvragen</p><p class="text-2xl font-bold">${total}</p></div>
                 <div class="glass p-5 rounded-xl border-l-4 border-green-500"><p class="text-slate-400 text-[10px] font-bold uppercase text-green-400">Relevant</p><p class="text-2xl font-bold">${relevantCount}</p></div>
-                <div class="glass p-5 rounded-xl border-l-4 border-red-500"><p class="text-slate-400 text-[10px] font-bold uppercase text-red-400">Ruis</p><p class="text-2xl font-bold">${irrelevantCount}</p></div>
+                <div class="glass p-5 rounded-xl border-l-4 border-indigo-500"><p class="text-slate-400 text-[10px] font-bold uppercase text-indigo-400">Via ThisWorkz</p><p class="text-2xl font-bold">${twCount}</p></div>
                 <div class="glass p-5 rounded-xl border-l-4 border-purple-500"><p class="text-slate-400 text-[10px] font-bold uppercase text-purple-400">Directe Matches</p><p class="text-2xl font-bold">${goMatches}</p></div>
             `;
         }
@@ -178,9 +182,15 @@
             const search = document.getElementById('searchInput').value.toLowerCase();
             const filtered = allItems.filter(item => {
                 const isRel = item.is_relevant === 1 || item.is_relevant === true;
-                const matchesFilter = (currentFilter === 'ALL') || (currentFilter === 'RELEVANT' && isRel) || (currentFilter === 'IRRELEVANT' && !isRel);
                 
-                const searchData = `${item.rol || ''} ${item.klant || ''} ${item.eindklant || ''} ${item.broker || ''}`.toLowerCase();
+                let matchesFilter = false;
+                if (currentFilter === 'ALL') matchesFilter = true;
+                else if (currentFilter === 'RELEVANT') matchesFilter = isRel;
+                else if (currentFilter === 'IRRELEVANT') matchesFilter = !isRel;
+                else if (currentFilter === 'MAIL') matchesFilter = (item._bron === 'MAIL');
+                else if (currentFilter === 'THISWORKZ') matchesFilter = (item._bron === 'THISWORKZ');
+                
+                const searchData = `${item.rol || ''} ${item.klant || ''} ${item.eindklant || ''} ${item.broker || ''} ${item.id || ''}`.toLowerCase();
                 return matchesFilter && searchData.includes(search);
             });
             renderDashboard(filtered);
@@ -190,13 +200,12 @@
             if (!confirm(`Weet je zeker dat je deze aanvraag (${bron}) wilt verwijderen?`)) return;
             logDebug(`Verwijder-verzoek voor ID: ${id} via ${bron}`, 'warn');
             
-            // Bepaal naar welke API het verzoek moet
             const targetApi = (bron === 'THISWORKZ') ? API_THISWORKZ : API_MAIL;
             
             try {
                 await fetch(`${targetApi}?id=${id}`, { method: 'DELETE' });
                 logDebug(`Item succesvol verwijderd uit ${bron}.`);
-                fetchData(); // Ververs het dashboard
+                fetchData(); 
             } catch (e) {
                 logDebug(`Fout bij verwijderen: ${e.message}`, 'error');
             }
@@ -206,7 +215,7 @@
             const container = document.getElementById('app-container');
             
             if (items.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-500 italic">Geen resultaten gevonden.</div>`;
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-500 italic">Geen resultaten gevonden voor dit filter.</div>`;
                 return;
             }
 
@@ -217,17 +226,27 @@
                 } catch(e) {}
 
                 const statusClass = item.match_status === 'GO' ? 'status-go' : (item.match_status === 'STRETCH' ? 'status-stretch' : 'status-nogo');
-                const eindklantWeergave = item.eindklant ? item.eindklant : (item.klant || 'Onbekend');
-                const brokerHtml = item.broker ? `<span class="bg-slate-700 px-2 py-0.5 rounded text-xs text-slate-300 ml-2 border border-slate-600 font-normal">via ${item.broker}</span>` : '';
-                
                 const isRel = item.is_relevant === 1 || item.is_relevant === true;
 
-                // DYNAMISCHE BADGE OP BASIS VAN BRON
+                // Verbeterde weergave logica
+                const weergaveTitel = item.rol && item.rol !== 'null' && item.rol !== '' ? item.rol : 'Zonder Titel';
+                const weergaveKlant = item.eindklant && item.eindklant !== 'null' ? item.eindklant : (item.klant && item.klant !== 'null' ? item.klant : 'Onbekende Klant');
+                const weergaveLocatie = item.locatie && item.locatie !== 'null' ? item.locatie : '-';
+                const weergaveTarief = item.tarief && item.tarief !== 'null' ? item.tarief : '-';
+                const weergaveUren = item.uren && item.uren !== 'null' ? item.uren : '-';
+                const weergaveStart = item.startdatum && item.startdatum !== 'null' ? item.startdatum : 'Z.s.m.';
+                const brokerHtml = item.broker && item.broker !== 'null' ? `<span class="bg-slate-700 px-2 py-0.5 rounded text-xs text-slate-300 ml-2 border border-slate-600 font-normal">via ${item.broker}</span>` : '';
+                const apiSourceHtml = item.api_source && item.api_source !== 'null' ? `<span class="bg-slate-700 px-2 py-0.5 rounded text-xs text-slate-300 ml-1 border border-slate-600 font-normal">(${item.api_source})</span>` : '';
+
+                // Dynamische badge en ID weergave
                 let sourceBadge = '';
+                let idWeergave = '';
                 if (item._bron === 'THISWORKZ') {
                     sourceBadge = `<span class="bg-indigo-600 text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase ml-2 tracking-wider shadow"><i class="fas fa-plug mr-1"></i>ThisWorkz</span>`;
+                    idWeergave = `Req ID: ${item.id}`;
                 } else {
                     sourceBadge = `<span class="bg-blue-600 text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase ml-2 tracking-wider shadow"><i class="fas fa-envelope mr-1"></i>Mail</span>`;
+                    idWeergave = `DB ID: ${item.id}`;
                 }
 
                 return `
@@ -236,35 +255,33 @@
                         <div class="flex justify-between items-start mb-3">
                             <div class="flex-1 pr-4">
                                 <h4 class="text-sm font-black uppercase tracking-widest text-blue-400 mb-1 flex items-center flex-wrap gap-1">
-                                    <i class="far fa-building mr-1"></i> ${eindklantWeergave} ${brokerHtml} ${sourceBadge}
+                                    <i class="far fa-building mr-1"></i> ${weergaveKlant} ${brokerHtml} ${apiSourceHtml} ${sourceBadge}
                                 </h4>
-                                <h3 class="text-2xl font-bold text-white leading-tight">${item.rol || 'Zonder Titel'}</h3>
+                                <h3 class="text-2xl font-bold text-white leading-tight">${weergaveTitel}</h3>
                             </div>
                             <div class="px-3 py-1.5 rounded-full font-bold text-xs text-white uppercase shadow-lg ${statusClass} whitespace-nowrap">${item.match_status || '?'}</div>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-3 mb-5 text-sm text-slate-300 font-medium bg-slate-800/50 p-3 rounded-lg border border-slate-700/30">
-                            <div class="flex items-center"><i class="fas fa-map-marker-alt text-blue-400 w-5"></i> <span class="truncate">${item.locatie || '-'}</span></div>
-                            <div class="flex items-center"><i class="fas fa-euro-sign text-emerald-400 w-5"></i> <span>${item.tarief ? item.tarief + '/u' : '-'}</span></div>
-                            <div class="flex items-center"><i class="fas fa-clock text-amber-400 w-5"></i> <span>${item.uren || '-'}</span></div>
-                            <div class="flex items-center"><i class="fas fa-rocket text-purple-400 w-5"></i> <span>${item.startdatum || 'Z.s.m.'}</span></div>
-                            ${item.deadline ? `<div class="col-span-2 flex items-center mt-1 text-red-400 font-bold border-t border-slate-700/50 pt-2"><i class="fas fa-hourglass-end w-5"></i> Deadline: ${item.deadline}</div>` : ''}
+                            <div class="flex items-center"><i class="fas fa-map-marker-alt text-blue-400 w-5"></i> <span class="truncate">${weergaveLocatie}</span></div>
+                            <div class="flex items-center"><i class="fas fa-euro-sign text-emerald-400 w-5"></i> <span>${weergaveTarief}</span></div>
+                            <div class="flex items-center"><i class="fas fa-clock text-amber-400 w-5"></i> <span>${weergaveUren}</span></div>
+                            <div class="flex items-center"><i class="fas fa-rocket text-purple-400 w-5"></i> <span>${weergaveStart}</span></div>
+                            ${item.deadline && item.deadline !== 'null' ? `<div class="col-span-2 flex items-center mt-1 text-red-400 font-bold border-t border-slate-700/50 pt-2"><i class="fas fa-hourglass-end w-5"></i> Deadline: ${item.deadline}</div>` : ''}
                         </div>
 
-                        ${(item.contactpersoon || item.contact_email || item.contact_telefoon) ? `
+                        ${(item.contactpersoon || item.contact_email || item.contact_telefoon) && (item.contactpersoon !== 'null' || item.contact_email !== 'null') ? `
                         <div class="mb-4 text-xs bg-slate-900/40 p-3 rounded border border-slate-700/30">
                             <p class="font-bold text-slate-400 mb-1 uppercase tracking-wider text-[10px]">Contact</p>
                             <div class="flex flex-col gap-1 text-slate-300">
-                                ${item.contactpersoon ? `<span class="font-medium"><i class="fas fa-user text-slate-500 w-4"></i> ${item.contactpersoon}</span>` : ''}
-                                ${item.contact_email ? `<a href="mailto:${item.contact_email}" class="hover:text-blue-400 transition"><i class="fas fa-envelope text-slate-500 w-4"></i> ${item.contact_email}</a>` : ''}
-                                ${item.contact_telefoon ? `<a href="tel:${item.contact_telefoon}" class="hover:text-blue-400 transition"><i class="fas fa-phone text-slate-500 w-4"></i> ${item.contact_telefoon}</a>` : ''}
+                                ${item.contactpersoon && item.contactpersoon !== 'null' ? `<span class="font-medium"><i class="fas fa-user text-slate-500 w-4"></i> ${item.contactpersoon}</span>` : ''}
+                                ${item.contact_email && item.contact_email !== 'null' ? `<a href="mailto:${item.contact_email}" class="hover:text-blue-400 transition"><i class="fas fa-envelope text-slate-500 w-4"></i> ${item.contact_email}</a>` : ''}
+                                ${item.contact_telefoon && item.contact_telefoon !== 'null' ? `<a href="tel:${item.contact_telefoon}" class="hover:text-blue-400 transition"><i class="fas fa-phone text-slate-500 w-4"></i> ${item.contact_telefoon}</a>` : ''}
                             </div>
                         </div>
                         ` : ''}
 
-                        <div class="bg-slate-900/60 p-4 rounded-lg mb-5 text-sm text-slate-300 leading-relaxed italic border border-slate-700/30">
-                            "${item.samenvatting || 'Geen samenvatting beschikbaar.'}"
-                        </div>
+                        <div class="bg-slate-900/60 p-4 rounded-lg mb-5 text-sm text-slate-300 leading-relaxed italic border border-slate-700/30 whitespace-pre-wrap">"${item.samenvatting && item.samenvatting !== 'null' ? item.samenvatting : 'Geen samenvatting of knockout reden beschikbaar.'}"</div>
 
                         <div class="mt-auto">
                             <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-700/50 pb-2">Gekoppelde Profielen</h4>
@@ -283,16 +300,18 @@
                             </div>
                         </div>
                         
-                        <div class="mt-6 pt-4 border-t border-slate-800/50 flex justify-between items-center text-xs text-slate-400 font-medium">
-                            <span><i class="far fa-clock mr-1"></i> Ontvangen: ${item.datum ? new Date(item.datum).toLocaleString('nl-NL', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'}) : 'Onbekend'}</span>
-                            <button onclick="deleteItem('${item.id}', '${item._bron}')" class="text-slate-500 hover:text-red-500 transition px-2 py-1 bg-slate-800 rounded border border-slate-700"><i class="fas fa-trash-alt"></i></button>
+                        <div class="mt-6 pt-4 border-t border-slate-800/50 flex justify-between items-center text-[10px] text-slate-500 font-medium">
+                            <div class="flex flex-col gap-1">
+                                <span><i class="far fa-clock mr-1"></i> Ontvangen: ${item.datum ? new Date(item.datum).toLocaleString('nl-NL', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'}) : 'Onbekend'}</span>
+                                <span><i class="fas fa-hashtag mr-1"></i> ${idWeergave}</span>
+                            </div>
+                            <button onclick="deleteItem('${item.id}', '${item._bron}')" class="text-slate-400 hover:text-red-500 transition px-3 py-2 bg-slate-800 rounded border border-slate-700 hover:border-red-500/50"><i class="fas fa-trash-alt"></i></button>
                         </div>
                     </div>
                 `;
             }).join('');
         }
         
-        // Data ophalen direct bij het inladen
         window.onload = fetchData;
     </script>
 </body>
