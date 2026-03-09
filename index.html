@@ -49,6 +49,7 @@
             </form>
         </div>
     </div>
+    
     <div class="max-w-screen-2xl mx-auto pb-20">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
@@ -73,7 +74,7 @@
                 <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Zoek op rol, klant of kandidaat..." 
                        class="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg block w-full pl-10 p-2.5 outline-none focus:border-blue-500">
             </div>
-            <div class="flex flex-wrap gap-2 w-full xl:w-auto">
+            <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
                 <div class="border-r border-slate-600 pr-2 mr-1 flex gap-2">
                     <button onclick="setFilter('RELEVANT')" id="btn-RELEVANT" class="filter-active border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Relevant</button>
                     <button onclick="setFilter('IRRELEVANT')" id="btn-IRRELEVANT" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Ruis</button>
@@ -81,6 +82,11 @@
                 <button onclick="setFilter('MAIL')" id="btn-MAIL" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition"><i class="fas fa-envelope mr-1"></i> Mail</button>
                 <button onclick="setFilter('THISWORKZ')" id="btn-THISWORKZ" class="border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition"><i class="fas fa-plug mr-1"></i> ThisWorkz</button>
                 <button onclick="setFilter('ALL')" id="btn-ALL" class="ml-1 border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Alles</button>
+                
+                <select id="sortOrder" onchange="applyFilters()" class="ml-2 bg-slate-800 border border-slate-600 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition outline-none focus:border-blue-500 cursor-pointer">
+                    <option value="desc">Nieuwste eerst ⬇</option>
+                    <option value="asc">Oudste eerst ⬆</option>
+                </select>
             </div>
         </div>
 
@@ -180,13 +186,11 @@
             allItems = []; 
             
             try {
-                // Let op: We sturen de apiKey nu ALLEEN naar de Mail API, om CORS-fouten bij ThisWorkz te voorkomen.
                 const [mailResponse, thisWorkzResponse] = await Promise.allSettled([
                     fetch(API_MAIL, { headers: { "x-api-key": apiKey } }),
-                    fetch(API_THISWORKZ) // Geen extra headers hier!
+                    fetch(API_THISWORKZ)
                 ]);
 
-                // Controleer of de Mail API het wachtwoord weigert (401 status)
                 if (mailResponse.status === 'fulfilled' && mailResponse.value.status === 401) {
                     localStorage.removeItem('dashboard_key');
                     apiKey = null;
@@ -222,8 +226,6 @@
                 if (allItems.length === 0) {
                     throw new Error("Geen data gevonden in beide API's.");
                 }
-
-                allItems.sort((a, b) => new Date(b.datum || 0) - new Date(a.datum || 0));
 
                 logDebug(`Totaal ${allItems.length} aanvragen succesvol gecombineerd.`);
                 updateStats();
@@ -264,6 +266,8 @@
 
         function applyFilters() {
             const search = document.getElementById('searchInput').value.toLowerCase();
+            const sortOrder = document.getElementById('sortOrder').value;
+
             const filtered = allItems.filter(item => {
                 const isRel = item.is_relevant === 1 || item.is_relevant === true;
                 
@@ -277,6 +281,14 @@
                 const searchData = `${item.rol || ''} ${item.klant || ''} ${item.eindklant || ''} ${item.broker || ''} ${item.id || ''}`.toLowerCase();
                 return matchesFilter && searchData.includes(search);
             });
+
+            // Sorteren op basis van de gekozen datum weergave
+            filtered.sort((a, b) => {
+                const dateA = new Date(a.datum || 0);
+                const dateB = new Date(b.datum || 0);
+                return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+            });
+
             renderDashboard(filtered);
         }
 
@@ -287,7 +299,6 @@
             const targetApi = (bron === 'THISWORKZ') ? API_THISWORKZ : API_MAIL;
             
             try {
-                // Alleen apiKey meesturen als we iets uit de Mail database verwijderen
                 const fetchOptions = { method: 'DELETE' };
                 if (bron === 'MAIL') {
                     fetchOptions.headers = { "x-api-key": apiKey };
@@ -375,7 +386,13 @@
                         </div>
                         ` : ''}
 
-                        <div class="bg-slate-900/60 p-4 rounded-lg mb-5 text-sm text-slate-300 leading-relaxed italic border border-slate-700/30 whitespace-pre-wrap">"${item.samenvatting && item.samenvatting !== 'null' ? item.samenvatting : 'Geen samenvatting of knockout reden beschikbaar.'}"</div>
+                        <div class="bg-slate-900/60 p-4 rounded-lg mb-2 text-sm text-slate-300 leading-relaxed italic border border-slate-700/30 whitespace-pre-wrap">"${item.samenvatting && item.samenvatting !== 'null' ? item.samenvatting : 'Geen samenvatting beschikbaar.'}"</div>
+
+                        ${item.knockout_reden && item.knockout_reden !== 'null' ? `
+                        <div class="bg-red-900/30 border border-red-500/50 p-3 rounded-lg mb-5 text-sm text-red-200">
+                            <i class="fas fa-ban mr-1 text-red-400"></i> <strong>Knock-out:</strong> ${item.knockout_reden}
+                        </div>
+                        ` : '<div class="mb-5"></div>'}
 
                         <div class="mt-auto">
                             <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-700/50 pb-2">Gekoppelde Profielen</h4>
