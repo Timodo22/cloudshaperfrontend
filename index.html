@@ -200,13 +200,24 @@
                 }
 
                 // Verwerk Mail Data
-                if (mailResponse.status === 'fulfilled' && mailResponse.value.ok) {
-                    const mailData = await mailResponse.value.json();
-                    if (Array.isArray(mailData)) {
-                        mailData.forEach(item => item._bron = 'MAIL');
-                        allItems = allItems.concat(mailData);
-                        logDebug(`${mailData.length} items uit Mail API geladen.`);
-                    }
+// Verwerk Mail / Cloudflare DB Data
+if (mailResponse.status === 'fulfilled' && mailResponse.value.ok) {
+    const dbData = await mailResponse.value.json();
+    if (Array.isArray(dbData)) {
+        dbData.forEach(item => {
+            // SLIMME CHECK: Heeft dit item een remote_id van ThisWorkz?
+            if (item.remote_id && item.remote_id !== 'null') {
+                item._bron = 'THISWORKZ';
+                // Optioneel: Overschrijf het ID voor de weergave zodat 'Req ID' klopt
+                item.id = item.remote_id; 
+            } else {
+                item._bron = 'MAIL';
+            }
+        });
+        allItems = allItems.concat(dbData);
+        logDebug(`${dbData.length} items uit Cloudflare DB geladen.`);
+    }
+}
                 } else {
                     logDebug(`Fout bij laden Mail API`, 'error');
                 }
