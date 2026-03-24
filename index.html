@@ -199,32 +199,29 @@
                     return;
                 }
 
-// Verwerk Mail / Cloudflare DB Data
-if (mailResponse.status === 'fulfilled' && mailResponse.value.ok) {
-    const dbData = await mailResponse.value.json();
-    if (Array.isArray(dbData)) {
-        dbData.forEach(item => {
-            // 1. BRON BEPALEN (Badge & Logo)
-            if (item.remote_id && item.remote_id !== 'null') {
-                item._bron = 'THISWORKZ';
-                item.id = item.remote_id; 
-            } else {
-                item._bron = 'MAIL';
-            }
+                // Verwerk Mail / Cloudflare DB Data
+                if (mailResponse.status === 'fulfilled' && mailResponse.value.ok) {
+                    const dbData = await mailResponse.value.json();
+                    if (Array.isArray(dbData)) {
+                        dbData.forEach(item => {
+                            // 1. BRON BEPALEN (Badge & Logo)
+                            if (item.remote_id && item.remote_id !== 'null') {
+                                item._bron = 'THISWORKZ';
+                                item.id = item.remote_id; 
+                            } else {
+                                item._bron = 'MAIL';
+                            }
 
-            // 2. RELEVANTIE BEPALEN (Voor de filters bovenin)
-            // We zeggen: Alles wat een GO of STRETCH is, is RELEVANT.
-            // Een NO-GO is altijd IRRELEVANT (Ruis).
-            if (item.match_status === 'GO' || item.match_status === 'STRETCH') {
-                item.is_relevant = true;
-            } else {
-                item.is_relevant = false;
-            }
-        });
-        allItems = allItems.concat(dbData);
-        logDebug(`${dbData.length} items uit Cloudflare DB geladen.`);
-    }
-}
+                            // 2. RELEVANTIE BEPALEN (Voor de filters bovenin)
+                            if (item.match_status === 'GO' || item.match_status === 'STRETCH') {
+                                item.is_relevant = true;
+                            } else {
+                                item.is_relevant = false;
+                            }
+                        });
+                        allItems = allItems.concat(dbData);
+                        logDebug(`${dbData.length} items uit Cloudflare DB geladen.`);
+                    }
                 } else {
                     logDebug(`Fout bij laden Mail API`, 'error');
                 }
