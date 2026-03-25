@@ -369,6 +369,12 @@
                     idWeergave = `DB ID: ${item.id}`;
                 }
 
+                // NIEUW: Dynamische knop voor de vacature URL
+                const urlButton = item.url && item.url !== 'null' ? 
+                    `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="bg-slate-700 hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center mr-2 border border-slate-600 hover:border-blue-500">
+                        <i class="fas fa-external-link-alt mr-2"></i> Bekijk Vacature
+                    </a>` : '';
+
                 return `
                     <div class="glass p-6 rounded-xl shadow-xl transition card-hover flex flex-col h-full border border-slate-700/50 ${!isRel ? 'opacity-60 grayscale-[0.3]' : ''}">
                         
@@ -431,7 +437,11 @@
                                 <span class="flex items-center"><i class="far fa-clock text-blue-400 w-5"></i> Ontvangen: ${item.datum ? new Date(item.datum).toLocaleString('nl-NL', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'}) : 'Onbekend'}</span>
                                 <span class="flex items-center font-bold text-slate-100"><i class="fas fa-hashtag text-purple-400 w-5"></i> ${idWeergave}</span>
                             </div>
-                            <button onclick="deleteItem('${item.id}', '${item._bron}')" class="text-slate-400 hover:text-white transition px-4 py-2.5 bg-slate-800 rounded-lg border border-slate-700 hover:border-red-500 hover:bg-red-500/20 shadow-sm"><i class="fas fa-trash-alt"></i></button>
+                            
+                            <div class="flex items-center">
+                                ${urlButton}
+                                <button onclick="deleteItem('${item.id}', '${item._bron}')" class="text-slate-400 hover:text-white transition px-4 py-2.5 bg-slate-800 rounded-lg border border-slate-700 hover:border-red-500 hover:bg-red-500/20 shadow-sm"><i class="fas fa-trash-alt"></i></button>
+                            </div>
                         </div>
                     </div>
                 `;
