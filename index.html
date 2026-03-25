@@ -307,29 +307,44 @@
             renderDashboard(filtered);
         }
 
-        async function deleteItem(id, bron) {
-            if (!confirm(`Weet je zeker dat je deze aanvraag (${bron}) wilt verwijderen?`)) return;
+        async function deleteItem(event, id, bron) {
+            // Voorkom standaard gedrag (voorkomt o.a. eventueel scrollen bij linkjes/buttons)
+            event.preventDefault();
+            event.stopPropagation();
+            
             logDebug(`Verwijder-verzoek voor ID: ${id} via ${bron}`, 'warn');
             
+            // 1. Optimistic UI update: verwijder lokaal direct uit de lijst zodat de gebruiker geen vertraging merkt
+            allItems = allItems.filter(item => item.id !== id);
+            applyFilters(); 
+            updateStats();
+            
+            // 2. Stuur het verzoek naar de API
             const targetApi = (bron === 'THISWORKZ') ? API_THISWORKZ : API_MAIL;
             
             try {
-                const fetchOptions = { method: 'DELETE' };
-                if (bron === 'MAIL') {
-                    fetchOptions.headers = { "x-api-key": apiKey };
-                }
+                const fetchOptions = { 
+                    method: 'DELETE',
+                    // Nu geven we OOK bij ThisWorkz de api key mee in de header
+                    headers: { "x-api-key": apiKey }
+                };
 
                 const response = await fetch(`${targetApi}?id=${id}`, fetchOptions);
 
                 if (response.status === 401) {
-                    alert("⚠️ Toegang geweigerd: Je hebt niet de juiste rechten om items te verwijderen.");
+                    logDebug("⚠️ Toegang geweigerd: Je hebt niet de juiste rechten om items te verwijderen.", "error");
+                    // Omdat we het lokaal al hadden verwijderd, moeten we de data opnieuw inladen
+                    fetchData(); 
                     return;
                 }
 
-                logDebug(`Item succesvol verwijderd uit ${bron}.`);
-                fetchData(); 
+                if (!response.ok) {
+                    logDebug(`Fout bij verwijderen op de server. Status: ${response.status}`, "error");
+                } else {
+                    logDebug(`Item succesvol verwijderd uit ${bron}.`);
+                }
             } catch (e) {
-                logDebug(`Fout bij verwijderen: ${e.message}`, 'error');
+                logDebug(`Netwerkfout bij verwijderen: ${e.message}`, 'error');
             }
         }
 
@@ -369,7 +384,6 @@
                     idWeergave = `DB ID: ${item.id}`;
                 }
 
-                // NIEUW: Dynamische knop voor de vacature URL
                 const urlButton = item.url && item.url !== 'null' ? 
                     `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="bg-slate-700 hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center mr-2 border border-slate-600 hover:border-blue-500">
                         <i class="fas fa-external-link-alt mr-2"></i> Bekijk Vacature
@@ -440,7 +454,7 @@
                             
                             <div class="flex items-center">
                                 ${urlButton}
-                                <button onclick="deleteItem('${item.id}', '${item._bron}')" class="text-slate-400 hover:text-white transition px-4 py-2.5 bg-slate-800 rounded-lg border border-slate-700 hover:border-red-500 hover:bg-red-500/20 shadow-sm"><i class="fas fa-trash-alt"></i></button>
+                                <button onclick="deleteItem(event, '${item.id}', '${item._bron}')" class="text-slate-400 hover:text-white transition px-4 py-2.5 bg-slate-800 rounded-lg border border-slate-700 hover:border-red-500 hover:bg-red-500/20 shadow-sm"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </div>
                     </div>
