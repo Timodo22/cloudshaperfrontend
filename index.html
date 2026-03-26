@@ -204,6 +204,9 @@
                     const dbData = await mailResponse.value.json();
                     if (Array.isArray(dbData)) {
                         dbData.forEach(item => {
+                            // ✅ FIX: Bewaar het originele DB-id VOOR we het eventueel overschrijven
+                            item._db_id = item.id;
+
                             // 1. BRON BEPALEN (Badge & Logo)
                             if (item.remote_id && item.remote_id !== 'null') {
                                 item._bron = 'THISWORKZ';
@@ -230,7 +233,10 @@
                 if (thisWorkzResponse.status === 'fulfilled' && thisWorkzResponse.value.ok) {
                     const twData = await thisWorkzResponse.value.json();
                     if (Array.isArray(twData)) {
-                        twData.forEach(item => item._bron = 'THISWORKZ');
+                        twData.forEach(item => {
+                            item._bron = 'THISWORKZ';
+                            item._db_id = null; // Puur van ThisWorkz API, geen DB-id
+                        });
                         allItems = allItems.concat(twData);
                         logDebug(`${twData.length} items uit ThisWorkz API geladen.`);
                     }
@@ -297,7 +303,6 @@
                 return matchesFilter && searchData.includes(search);
             });
 
-            // Sorteren op basis van de gekozen datum weergave
             filtered.sort((a, b) => {
                 const dateA = new Date(a.datum || 0);
                 const dateB = new Date(b.datum || 0);
@@ -307,33 +312,34 @@
             renderDashboard(filtered);
         }
 
-        async function deleteItem(event, id, bron) {
-            // Voorkom standaard gedrag (voorkomt o.a. eventueel scrollen bij linkjes/buttons)
+        async function deleteItem(event, dbId, displayId, bron) {
             event.preventDefault();
             event.stopPropagation();
-            
-            logDebug(`Verwijder-verzoek voor ID: ${id} via ${bron}`, 'warn');
-            
-            // 1. Optimistic UI update: verwijder lokaal direct uit de lijst zodat de gebruiker geen vertraging merkt
-            allItems = allItems.filter(item => item.id !== id);
+
+            // ✅ FIX: Gebruik het originele DB-id om te verwijderen uit allItems
+            logDebug(`Verwijder-verzoek voor DB-ID: ${dbId} (display: ${displayId}) via ${bron}`, 'warn');
+
+            // Optimistic UI: verwijder direct lokaal op basis van het unieke _db_id of display id
+            allItems = allItems.filter(item => {
+                if (dbId) return item._db_id !== dbId;
+                return item.id !== displayId;
+            });
             applyFilters(); 
             updateStats();
-            
-            // 2. Stuur het verzoek naar de API
-            const targetApi = (bron === 'THISWORKZ') ? API_THISWORKZ : API_MAIL;
+
+            // ✅ FIX: Items uit de Cloudflare DB (ook die met remote_id) gaan altijd naar API_MAIL
+            // Alleen puur-ThisWorkz items (geen _db_id) gaan naar de ThisWorkz API
+            const targetApi = dbId ? API_MAIL : API_THISWORKZ;
+            const deleteId = dbId || displayId;
             
             try {
-                const fetchOptions = { 
+                const response = await fetch(`${targetApi}?id=${deleteId}`, { 
                     method: 'DELETE',
-                    // Nu geven we OOK bij ThisWorkz de api key mee in de header
                     headers: { "x-api-key": apiKey }
-                };
-
-                const response = await fetch(`${targetApi}?id=${id}`, fetchOptions);
+                });
 
                 if (response.status === 401) {
                     logDebug("⚠️ Toegang geweigerd: Je hebt niet de juiste rechten om items te verwijderen.", "error");
-                    // Omdat we het lokaal al hadden verwijderd, moeten we de data opnieuw inladen
                     fetchData(); 
                     return;
                 }
@@ -341,7 +347,7 @@
                 if (!response.ok) {
                     logDebug(`Fout bij verwijderen op de server. Status: ${response.status}`, "error");
                 } else {
-                    logDebug(`Item succesvol verwijderd uit ${bron}.`);
+                    logDebug(`Item (DB-ID: ${deleteId}) succesvol verwijderd uit de database.`);
                 }
             } catch (e) {
                 logDebug(`Netwerkfout bij verwijderen: ${e.message}`, 'error');
@@ -381,13 +387,17 @@
                     idWeergave = `Req ID: ${item.id}`;
                 } else {
                     sourceBadge = `<span class="bg-blue-600 text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase ml-2 tracking-wider shadow"><i class="fas fa-envelope mr-1"></i>Mail</span>`;
-                    idWeergave = `DB ID: ${item.id}`;
+                    idWeergave = `DB ID: ${item._db_id ?? item.id}`;
                 }
 
                 const urlButton = item.url && item.url !== 'null' ? 
                     `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="bg-slate-700 hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow-sm transition flex items-center mr-2 border border-slate-600 hover:border-blue-500">
                         <i class="fas fa-external-link-alt mr-2"></i> Bekijk Vacature
                     </a>` : '';
+
+                // ✅ FIX: Geef zowel _db_id als display-id mee aan deleteItem
+                const dbIdAttr = item._db_id ?? '';
+                const displayIdAttr = item.id ?? '';
 
                 return `
                     <div class="glass p-6 rounded-xl shadow-xl transition card-hover flex flex-col h-full border border-slate-700/50 ${!isRel ? 'opacity-60 grayscale-[0.3]' : ''}">
@@ -454,7 +464,7 @@
                             
                             <div class="flex items-center">
                                 ${urlButton}
-                                <button onclick="deleteItem(event, '${item.id}', '${item._bron}')" class="text-slate-400 hover:text-white transition px-4 py-2.5 bg-slate-800 rounded-lg border border-slate-700 hover:border-red-500 hover:bg-red-500/20 shadow-sm"><i class="fas fa-trash-alt"></i></button>
+                                <button onclick="deleteItem(event, '${dbIdAttr}', '${displayIdAttr}', '${item._bron}')" class="text-slate-400 hover:text-white transition px-4 py-2.5 bg-slate-800 rounded-lg border border-slate-700 hover:border-red-500 hover:bg-red-500/20 shadow-sm"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </div>
                     </div>
