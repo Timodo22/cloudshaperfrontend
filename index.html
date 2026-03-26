@@ -84,8 +84,8 @@
                 <button onclick="setFilter('ALL')" id="btn-ALL" class="ml-1 border border-slate-600 bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition">Alles</button>
                 
                 <select id="sortOrder" onchange="applyFilters()" class="ml-2 bg-slate-800 border border-slate-600 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition outline-none focus:border-blue-500 cursor-pointer">
-                    <option value="desc">Nieuwste eerst ⬇</option>
                     <option value="asc">Oudste eerst ⬆</option>
+                    <option value="desc">Nieuwste eerst ⬇</option>
                 </select>
             </div>
         </div>
@@ -320,9 +320,10 @@
             logDebug(`Verwijder-verzoek voor DB-ID: ${dbId} (display: ${displayId}) via ${bron}`, 'warn');
 
             // Optimistic UI: verwijder direct lokaal op basis van het unieke _db_id of display id
+            // Gebruik == (loose) zodat string "5" en number 5 gelijk zijn
             allItems = allItems.filter(item => {
-                if (dbId) return item._db_id !== dbId;
-                return item.id !== displayId;
+                if (dbId) return item._db_id != dbId;
+                return item.id != displayId;
             });
             applyFilters(); 
             updateStats();
