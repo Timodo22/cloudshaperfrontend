@@ -324,7 +324,7 @@
 
         async function deleteItem(event, dbId, displayId, bron) {
             event.preventDefault();
-            event.stopPropagation();
+            event.stopPropagation(); // Zorgt ervoor dat de kaart niet uitklapt als je op de prullenbak klikt
 
             logDebug(`Verwijder-verzoek voor DB-ID: ${dbId} (display: ${displayId}) via ${bron}`, 'warn');
 
@@ -404,10 +404,8 @@
                 const dbIdAttr = item._db_id ?? '';
                 const displayIdAttr = item.id ?? '';
                 
-                // Creëer een uniek ID voor de accordion logica
                 const safeCardId = `card-${(dbIdAttr || displayIdAttr || Math.random().toString(36).substr(2, 9)).toString().replace(/[^a-zA-Z0-9]/g, '')}`;
 
-                // Maak simpele badge tags voor de kandidaten in de ingeklapte weergave
                 const kandidaatBadges = kandidaten && kandidaten.length > 0 ? kandidaten.map(k => `
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${k.status === 'GO' ? 'text-green-400 border-green-500/30 bg-green-500/10' : (k.status === 'STRETCH' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-red-400 border-red-500/30 bg-red-500/10')} mr-1 mb-1 shadow-sm">
                         <i class="fas ${k.status === 'GO' ? 'fa-check' : 'fa-exclamation'} mr-1"></i> ${k.naam || 'Onbekend'}
@@ -425,9 +423,16 @@
                                     </h4>
                                     <h3 class="text-lg font-bold text-white leading-tight">${weergaveTitel}</h3>
                                 </div>
-                                <div class="flex flex-col items-end gap-3">
-                                    <div class="px-2.5 py-1 rounded font-bold text-[10px] text-white uppercase shadow-lg ${statusClass} whitespace-nowrap">${item.match_status || '?'}</div>
-                                    <i id="icon-${safeCardId}" class="fas fa-chevron-down text-slate-400 transition-transform duration-300"></i>
+                                <div class="flex flex-col items-end gap-2">
+                                    <div class="flex items-center gap-3">
+                                        <button onclick="deleteItem(event, '${dbIdAttr}', '${displayIdAttr}', '${item._bron}')" 
+                                                class="text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded p-1.5 transition-all" 
+                                                title="Verwijderen">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                        <div class="px-2.5 py-1 rounded font-bold text-[10px] text-white uppercase shadow-lg ${statusClass} whitespace-nowrap">${item.match_status || '?'}</div>
+                                    </div>
+                                    <i id="icon-${safeCardId}" class="fas fa-chevron-down text-slate-400 transition-transform duration-300 mt-1"></i>
                                 </div>
                             </div>
                             
@@ -491,7 +496,6 @@
                                 
                                 <div class="flex items-center">
                                     ${urlButton}
-                                    <button onclick="deleteItem(event, '${dbIdAttr}', '${displayIdAttr}', '${item._bron}')" class="text-slate-400 hover:text-white transition px-4 py-2.5 bg-slate-800 rounded-lg border border-slate-700 hover:border-red-500 hover:bg-red-500/20 shadow-sm"><i class="fas fa-trash-alt"></i></button>
                                 </div>
                             </div>
                         </div>
